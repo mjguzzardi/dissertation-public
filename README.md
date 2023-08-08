@@ -11,4 +11,8 @@ The file named: `dissertation_supplement_core` will contain the primary code for
   * Including code that produces a simplified table for copy-pasting into a Word document
 
 The following files are also needed:
-* 
+* `bike_station_analysis`
+  * This produces a csv that is loaded in the main file, `dissertation_supplement_core`, and therefore the underlying code for our `Station Count` variable
+* `event_study`
+  * This produces the event study regression (equation 3 and table 4) that is found in our robustness checks
+*
