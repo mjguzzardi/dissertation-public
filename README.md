@@ -16,3 +16,6 @@ The following files are also needed:
 * `event_study`
   * This produces the event study regression (equation 3 and table 4) that is found in our robustness checks
 *
+
+
+TODO: Summary tables, data downloads
