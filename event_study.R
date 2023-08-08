@@ -1,27 +1,26 @@
 #perform statistical pre-treatment PTA check
+
+#create a date variable in months
 trips_triple_by_day <- trips_triple_by_day %>%
   mutate(start_time_month=trunc(start_time_day, unit='months'))
 
 
-#get pre-treatment df
+#filter to non-member
 pta_check_df <- trips_triple_by_day %>%
   filter(non_member==1)
 
-# pta_check_df$start_time_month <- unlist(pta_check_df$start_time_month)
+#create factor variable, R throws an error in the regression if you don't do this
 pta_check_df$start_time_month <- factor(pta_check_df$start_time_month)
 
-#build regression
-# reg_pta_check <- feols(log(n) ~ start_time_day*treat, data=pta_check_df)
-
+#build regression (this is equation 3)
 reg_month_pta_check <- feols(log(n) ~ i(start_time_month, ref='2019-01-01')*treat, data=pta_check_df)
 
-
-# etable(reg_pta_check)
-
+#output reg table
 etable(reg_month_pta_check)
 
 
-#export a reg table
+#export a reg table (this is only used to copy-paste the output into Word, I recommend using Latex)
+#this is table 4
 
 model_pta_check <- list(
   'OLS' = reg_month_pta_check
