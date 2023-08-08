@@ -1,0 +1,608 @@
+---
+title: "dissertation-rmd-public"
+author: "Michael Guzzardi"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+#set working directory
+
+#setwd("file_path")
+```
+
+
+```{r}
+#install any needed packages
+
+# install.packages("package")
+```
+
+```{r include=FALSE}
+#load packages
+
+library(tidyverse)
+library(fixest)
+library(lubridate)
+library(ggplot2)
+library(readr)
+library(sf)
+library(rgdal)
+library(tmap)
+library(gridExtra)
+library(dplyr)
+library(gt)
+library(modelsummary)
+```
+
+```{r include=FALSE}
+#FIND INDEGO SYSTEM DATA HERE: https://www.rideindego.com/about/data/
+
+# setwd("/Users/michaelguzzardi/Desktop/LSE/Dissertation/Data/indego/")
+
+#import data indego
+indego_trips_2019q1  <- read_csv('indego-trips-2019-q1.csv')
+indego_trips_2019q2  <- read_csv('indego-trips-2019-q2.csv')
+indego_trips_2019q3  <- read_csv('indego-trips-2019-q3.csv')
+indego_trips_2019q4  <- read_csv('indego-trips-2019-q4.csv')
+
+#subset data to only columns necessary for main analysis
+indego_trips_2019q1 <- subset(indego_trips_2019q1, select=c(start_time, passholder_type, bike_type))
+indego_trips_2019q2 <- subset(indego_trips_2019q2, select=c(start_time, passholder_type, bike_type))
+indego_trips_2019q3 <- subset(indego_trips_2019q3, select=c(start_time, passholder_type, bike_type)) %>%
+  mutate(start_time=as.Date(start_time,'%m/%d/%Y')) #clean up date format for 2019q3 data file
+indego_trips_2019q4 <- subset(indego_trips_2019q4, select=c(start_time, passholder_type, bike_type))
+
+#bind into one dataset
+indego_trips_all <- rbind(indego_trips_2019q1,indego_trips_2019q2,indego_trips_2019q3,indego_trips_2019q4)
+indego_trips_all <- dplyr::rename(indego_trips_all,usertype=passholder_type) #rename a column
+
+#filter out ebikes (see indego ebike analysis script for portion of ebikes filtered out)
+indego_trips_all <- indego_trips_all %>%
+  filter(bike_type != 'electric') %>%
+  select(-bike_type) #remove bike_type column
+
+#round start time dates to the nearest day and month for agg purposes
+indego_trips_all <- indego_trips_all %>%
+  mutate(start_time_day=trunc(start_time, unit='days')) %>%
+  mutate(start_time_month=trunc(start_time, unit='months')) %>%
+  mutate(week_num=strftime(start_time_day, format='%V')) #average by week to smooth chart
+
+#filter to day passes and walk-ups
+indego_trips_non_member <- indego_trips_all %>%
+  filter(usertype %in% c('Day Pass','Walk-up')) %>%
+  mutate(non_member = 1) #add indicator variable for non_member status
+
+#filter to year memberships
+indego_trips_member <- indego_trips_all %>%
+  filter(usertype %in% c('Indego365')) %>%
+  mutate(non_member = 0) #add member indicator
+
+#make some useful aggregations for later use
+
+#agg by day and count all
+indego_trips_all_by_day <- indego_trips_all %>%
+  count(start_time_day)
+
+#agg non_member by day and count
+indego_trips_non_member_by_day <- indego_trips_non_member %>%
+  count(start_time_day)
+
+#agg member by day and count
+indego_trips_member_by_day <- indego_trips_member %>%
+  count(start_time_day)
+
+#agg by week and count all
+indego_trips_all_by_week <- indego_trips_all %>%
+  dplyr::count(week_num)
+
+#agg by week and count non members
+indego_trips_non_member_by_week<- indego_trips_non_member %>%
+  dplyr::count(week_num)
+
+#agg by week and count members
+indego_trips_member_by_week <- indego_trips_member %>%
+  dplyr::count(week_num)
+
+```
+
+
+```{r include=FALSE}
+#FIND CITI BIKE SYSTEM DATA HERE: 
+#https://s3.amazonaws.com/tripdata/index.html
+#https://citibikenyc.com/system-data
+
+# setwd("/Users/michaelguzzardi/Desktop/LSE/Dissertation/Data/citi_bike/")
+
+#import data csvs citi bike nyc (note: this can be optimized with a loop)
+cb_trips_201901  <- read_csv('201901-citibike-tripdata.csv')
+cb_trips_201902  <- read_csv('201902-citibike-tripdata.csv')
+cb_trips_201903  <- read_csv('201903-citibike-tripdata.csv')
+cb_trips_201904  <- read_csv('201904-citibike-tripdata.csv')
+cb_trips_201905  <- read_csv('201905-citibike-tripdata.csv')
+cb_trips_201906  <- read_csv('201906-citibike-tripdata.csv')
+cb_trips_201907  <- read_csv('201907-citibike-tripdata.csv')
+cb_trips_201908  <- read_csv('201908-citibike-tripdata.csv')
+cb_trips_201909  <- read_csv('201909-citibike-tripdata.csv')
+cb_trips_201910  <- read_csv('201910-citibike-tripdata.csv')
+cb_trips_201911  <- read_csv('201911-citibike-tripdata.csv')
+cb_trips_201912  <- read_csv('201912-citibike-tripdata.csv')
+
+#select only start time from each df (note: this can be optimized with a loop)
+cb_trips_201901 <- cb_trips_201901 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201902 <- cb_trips_201902 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201903 <- cb_trips_201903 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201904 <- cb_trips_201904 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201905 <- cb_trips_201905 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201906 <- cb_trips_201906 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201907 <- cb_trips_201907 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201908 <- cb_trips_201908 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201909 <- cb_trips_201909 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201910 <- cb_trips_201910 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201911 <- cb_trips_201911 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201912 <- cb_trips_201912 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_all <- rbind(cb_trips_201912,cb_trips_201911,cb_trips_201910,
+                      cb_trips_201909,cb_trips_201908,cb_trips_201907,
+                      cb_trips_201906,cb_trips_201905,cb_trips_201904,
+                      cb_trips_201903,cb_trips_201902,cb_trips_201901)
+
+#round start time dates to the nearest day and month for agg purposes
+cb_trips_all <- cb_trips_all %>%
+  mutate(starttime_day=trunc(starttime, unit='days')) %>%
+  mutate(starttime_month=trunc(starttime, unit='months')) %>%
+  mutate(week_num=strftime(starttime_day, format='%V')) #average by week to smooth chart
+
+
+#filter to non members
+cb_trips_non_member <- cb_trips_all %>%
+  filter(usertype == 'Customer') %>%
+  mutate(non_member = 1) #create non_member indicator variable
+
+#filter to members
+cb_trips_member <- cb_trips_all %>%
+  filter(usertype == 'Subscriber') %>%
+  mutate(non_member = 0) #create member indicator
+
+#make some useful aggregations
+
+#agg by day and count all
+cb_trips_all_by_day <- cb_trips_all %>%
+  dplyr::count(starttime_day)
+
+#agg by day and count non members
+cb_trips_non_member_by_day <- cb_trips_non_member %>%
+  dplyr::count(starttime_day)
+
+#agg by day and count members
+cb_trips_member_by_day <- cb_trips_member %>%
+  dplyr::count(starttime_day)
+
+#agg by week and count all
+cb_trips_all_by_week <- cb_trips_all %>%
+  dplyr::count(week_num)
+
+#agg by week and count non members
+cb_trips_non_member_by_week <- cb_trips_non_member %>%
+  dplyr::count(week_num)
+
+#agg by week and count members
+cb_trips_member_by_week <- cb_trips_member %>%
+  dplyr::count(week_num)
+
+```
+
+```{r include=FALSE}
+#Create dual y-axis chart for visual PTA check, NON-MEMBER (this is Figure 1)
+
+#create df of weekly trips
+cb_trips_non_member_by_week_dual <- cb_trips_non_member_by_week %>%
+  dplyr::rename(n_cb=n)
+indego_trips_non_member_by_week_dual <- indego_trips_non_member_by_week %>%
+  dplyr::rename(n_indego=n)
+
+#join dfs
+df_dual_chart <- inner_join(cb_trips_non_member_by_week_dual,indego_trips_non_member_by_week_dual, by="week_num")
+
+df_dual_chart$week_num <- as.numeric(df_dual_chart$week_num) #change data type for x-axis
+
+#scaling coefficient for dual axes
+coeff <- 24 #this is a scaling coefficient to align our two y-axes, a bit manual but is required for the chart
+
+#build the chart
+chart <- ggplot(df_dual_chart, aes(x=week_num, y=n_indego)) + 
+  geom_line(aes(), linetype='dashed', col='deepskyblue4') +
+  geom_line(aes(y=n_cb/coeff), col='black', linetype='solid') +
+  scale_y_continuous(name='Indego Bike Rides (Control)', sec.axis=sec_axis(~.*coeff, name='Citi Bike Rides (Treatment)')) +
+  geom_vline(xintercept=21, color='red', linewidth=.25) +
+  theme_minimal() +
+  ggtitle('Non-Member Bike Rides by Week') +
+  xlab('Week Number') +
+  theme(
+    axis.title.y.left = element_text(color='deepskyblue4'),
+    legend.position = 'none',
+    plot.title=element_text(hjust = .5, face='bold')
+  )
+
+#display the chart
+chart
+```
+
+```{r include=FALSE}
+#code for dual y-axis chart MEMBERS (this is Figure 6)
+
+options(scipen = 999) #this just prevents scientific notiation for large numbers on our Citi Bike y-axis
+
+#create df of weekly trips
+cb_trips_member_by_week_dual <- cb_trips_member_by_week %>%
+  dplyr::rename(n_cb=n)
+indego_trips_member_by_week_dual <- indego_trips_member_by_week %>%
+  dplyr::rename(n_indego=n)
+
+#join dfs
+df_dual_chart_member <- inner_join(cb_trips_member_by_week_dual,indego_trips_member_by_week_dual, by="week_num")
+
+df_dual_chart_member$week_num <- as.numeric(df_dual_chart_member$week_num) #change data type for x-axis
+
+#scaling coefficient for dual axes
+coeff_member <- max(df_dual_chart_member$n_cb)/max(df_dual_chart_member$n_indego) #this works well for creating our scaling coefficient
+
+#build the chart
+chart_member <- ggplot(df_dual_chart_member, aes(x=week_num, y=n_indego)) + 
+  geom_line(aes(), linetype='dashed', col='deepskyblue4') +
+  geom_line(aes(y=n_cb/coeff_member), linetype='solid', col='black') +
+  scale_y_continuous(name='Indego Bike Rides (Control)', sec.axis=sec_axis(~.*coeff_member, name='Citi Bike Rides (Treatment)')) +
+  geom_vline(xintercept=21, color='red', linewidth=.25) +
+  theme_minimal() +
+  ggtitle('Member Bike Rides by Week') +
+  xlab('Week Number') + 
+  theme(
+    axis.title.y.left = element_text(color='deepskyblue4'),
+    legend.position = 'none',
+    plot.title=element_text(hjust = .5, face='bold')
+  )
+
+#display the chart
+chart_member
+```
+
+```{r}
+#in case you want to plot both charts in a single panel, however you'll have to tweak the labeling so that you are not redundant
+grid.arrange(chart, chart_member)
+```
+
+```{r include=FALSE}
+#ACQUIRE WEATHER DATA FROM HERE: https://www.ncdc.noaa.gov/cdo-web/datatools/findstation
+#I used two stations, one for each city:
+  #JFK INTERNATIONAL AIRPORT, NY US
+  #PHILADELPHIA FRANKLIN INSTITUTE, PA US
+#The used daily summaries data, and the fields used in the analysis are listed below, in our 'weather' data frame
+
+#import weather data
+weather <- read_csv('/Users/michaelguzzardi/Desktop/LSE/Dissertation/Data/noaa_weather_nyc_philly.csv')
+
+weather <- weather %>%
+  mutate(weather_date = as.Date(DATE, '%d/%m/%Y')) %>% #clean up date formats
+  mutate(TAVG = (TMAX+TMIN)/2) %>% #create temperature average
+  select(c('NAME','weather_date','PRCP','SNOW','TAVG','TMAX','TMIN')) %>% #select only variables of interest
+  mutate(weather_city = ifelse(NAME == 'JFK INTERNATIONAL AIRPORT, NY US', 'nyc', 'philly')) %>% #rename weather stations with convenient abbreviation
+  mutate(PRCP_DUM = ifelse(PRCP > 0, 1, 0)) %>% #create precipitation dummy
+  mutate(SNOW_DUM = ifelse(SNOW > 0, 1, 0)) #create snow dummy
+```
+
+```{r include=FALSE}
+#get unique station count by month for each, to later use in final dataset to control for system expansion
+
+#see R script: "bike_station_analysis" which is where I create the station dataframes -- the code takes a long time to run because it must find unique records out of millions of observations, so I export the data into a csv, and then re-upload it as a dataframe below
+
+#NYC citi bike
+cb_station_unique <- read_csv('/Users/michaelguzzardi/Desktop/LSE/Dissertation/cb_trips_combined.csv') #load dataframe
+
+#get a monthly count of stations, and do some renaming of columns
+cb_station_cnts <- cb_station_unique %>%
+  group_by(starttime_month) %>%
+  count() %>%
+  mutate(city_bike_city = 'nyc') %>%
+  dplyr::rename(station_cnt = n) %>%
+  dplyr::rename(start_time_month=starttime_month)
+
+
+#philly Indego
+indego_station_unique <- read_csv('/Users/michaelguzzardi/Desktop/LSE/Dissertation/indego_trips_combined.csv') #load dataframe
+
+#get a monthly count of stations, and do some renaming of columns
+indego_station_cts <- indego_station_unique %>%
+  group_by(start_time_month) %>%
+  count() %>%
+  mutate(city_bike_city = 'philly') %>%
+  dplyr::rename(station_cnt = n)
+
+#bind both datasets together to eventually use in regression
+monthly_station_cts <- rbind(cb_station_cnts,indego_station_cts)
+```
+
+
+```{r include=FALSE}
+#build the dataframe for MEMBER regression model 
+
+#indego trips
+indego_trips_m <- indego_trips_member
+  
+
+#citi_bike trips at different temporal groups
+cb_trips_m <- cb_trips_member %>%
+  rename(
+    start_time=starttime, #rename columns
+    start_time_day=starttime_day,
+    start_time_month=starttime_month
+  )
+
+#prep data for DID
+indego_trips_m <- indego_trips_m %>%
+  mutate(city_bike_city = 'philly') %>% #helpful indicator
+  mutate(treat = 0) %>% #set as control
+  mutate(post = 0) %>% #create post column
+  mutate(post = ifelse(indego_trips_m$start_time_day >= as.Date('2019-05-22'), 1, 0)) #set post to 1 if after intervention
+
+cb_trips_m <- cb_trips_m %>%
+  mutate(city_bike_city = 'nyc') %>% #helpful indicator
+  mutate(treat = 1) %>% #set as treat
+  mutate(post = 0) %>%
+  mutate(post = ifelse(cb_trips_m$start_time_day >= as.Date('2019-05-22'), 1, 0)) #set post to 1 if after intervention
+
+#combine data sets
+trips_m <- rbind(cb_trips_m, indego_trips_m)
+
+#merge the station count dataframe (make sure it's joining on month AND city)
+trips_m <- inner_join(trips_m, monthly_station_cts, by=c('start_time_month'= 'start_time_month','city_bike_city' = 'city_bike_city'))
+
+#get a count for the number of bike trips by day, this count will be your eventual y variable
+trips_by_day_m <- trips_m %>%
+  count(start_time_day, station_cnt, city_bike_city, treat, post)
+
+#merge weather data in to trips_by_day data set
+trips_by_day_m <- trips_by_day_m %>%
+  inner_join(weather, by=c('start_time_day'='weather_date', 'city_bike_city' = 'weather_city'))
+```
+
+
+```{r include=FALSE}
+#build DD regression for members, and run the regressions
+
+#base DD
+#Output for "Base Member DD" in Table (5)
+reg_base_m <- feols(log(n) ~ treat*post, data=trips_by_day_m) 
+
+#base DD with temp, precipitation, and station cnt variable for both cities
+#this is equation (4), and output for "Member DD with Controls" in Table 5
+reg_base_m_tavg_prcp_stn <- feols(log(n) ~ treat*post + TAVG + PRCP_DUM + SNOW_DUM + station_cnt, data=trips_by_day_m) 
+
+#display results Table (5)
+etable(reg_base_m,reg_base_m_tavg_prcp_stn)
+```
+
+
+```{r include=FALSE}
+#export member DD results (this just makes a table that we can easily copy/paste into Word)
+#for publication it would be best to do this all in Latex, this export is simply to comply with submission guidelines
+#Table (5)
+
+models_member_dd <- list(
+  'Base Member DD' = reg_base_m,
+  'Member DD with Controls' = reg_base_m_tavg_prcp_stn
+)
+
+models__member_dd_output <- msummary(models_member_dd,
+                              statistic=NULL,
+                              estimate='{estimate} ({std.error}) {stars}',
+                              gof_omit = 'BIC|AIC|R2 Within|R2 Within Adj.|RMSE',
+                              coef_rename = c('Intercept','Treat (NYC)', 'Post', 'Treat x Post (DD)', 'Temperature Average', 'Precipitation', 'Snow', 'Station Count'),
+                              stars = TRUE,
+                              font_size = 8, 
+                              title = 'Table n',
+                              )
+
+models__member_dd_output
+```
+
+
+```{r include=FALSE}
+#build NON MEMBER regression dataframe
+
+#indego trips
+indego_trips_nm <- indego_trips_non_member
+
+#citi_bike trips at different temporal groups
+cb_trips_nm <- cb_trips_non_member %>%
+  rename(
+    start_time=starttime, #rename columns
+    start_time_day=starttime_day,
+    start_time_month=starttime_month
+  )
+
+#prep data for DID
+indego_trips_nm <- indego_trips_nm %>%
+  mutate(city_bike_city = 'philly') %>% #helpful indicator
+  mutate(treat = 0) %>% #set as control
+  mutate(post = 0) %>% #initiate post column
+  mutate(post = ifelse(indego_trips_nm$start_time_day >= as.Date('2019-05-22'), 1, 0)) #set post to 1 if after intervention
+
+cb_trips_nm <- cb_trips_nm %>%
+  mutate(city_bike_city = 'nyc') %>% #helpful indicator
+  mutate(treat = 1) %>% #set as treat
+  mutate(post = 0) %>% #initiate post column
+  mutate(post = ifelse(cb_trips_nm$start_time_day >= as.Date('2019-05-22'), 1, 0)) #set post to 1 if after intervention
+
+#combine sets
+trips_nm <- rbind(cb_trips_nm, indego_trips_nm)
+
+#join station cnts
+trips_nm <- inner_join(trips_nm, monthly_station_cts, by=c('start_time_month'= 'start_time_month','city_bike_city' = 'city_bike_city'))
+
+#group by day and create trip counts, this will be the eventual y variable
+trips_by_day_nm <- trips_nm %>%
+  count(start_time_day, station_cnt, city_bike_city, treat, post)
+
+#merge weather data in to trips_by_day data set
+trips_by_day_nm <- trips_by_day_nm %>%
+  inner_join(weather, by=c('start_time_day'='weather_date', 'city_bike_city' = 'weather_city'))
+```
+
+
+```{r include=FALSE}
+#code for a standard difference-in-differences for non-member riders
+#THIS IS NOT USED IN THE PAPER, BUT JUST HERE IN CASE IT IS HELPFUL
+
+indego_trips_double <- indego_trips_non_member
+
+cb_trips_double <- cb_trips_non_member %>%
+  rename(
+    start_time=starttime, #rename columns
+    start_time_day=starttime_day,
+    start_time_month=starttime_month
+  )
+
+
+#prep data for DID
+indego_trips_double <- indego_trips_double %>%
+  mutate(city_bike_city = 'philly') %>% #helpful indicator
+  mutate(treat = 0) %>% #set as control
+  mutate(post = 0) %>% #create post column
+  mutate(post = ifelse(indego_trips_double$start_time_day >= as.Date('2019-05-22'), 1, 0)) #set post to 1 if after intervention
+
+cb_trips_double <- cb_trips_double %>%
+  mutate(city_bike_city = 'nyc') %>% #helpful indicator
+  mutate(treat = 1) %>% #set as treat
+  mutate(post = 0) %>% #create post column
+  mutate(post = ifelse(cb_trips_double$start_time_day >= as.Date('2019-05-22'), 1, 0)) #set post to 1 if after intervention
+
+#combine sets
+trips_double <- rbind(indego_trips_double, cb_trips_double)
+
+#join station counts
+trips_double <- inner_join(trips_double, monthly_station_cts, by=c('start_time_month'= 'start_time_month','city_bike_city' = 'city_bike_city'))
+
+
+trips_double_by_day <- trips_double %>%
+  count(start_time_day, station_cnt, city_bike_city, treat, post, non_member)
+
+#merge weather data in to trips_by_day data set
+trips_double_by_day <- trips_double_by_day %>%
+  inner_join(weather, by=c('start_time_day'='weather_date', 'city_bike_city' = 'weather_city'))
+
+#Build double DiD and get regression outputs
+double_reg_base <- feols(log(n) ~ treat + post + treat*post, data=trips_double_by_day, vcov='hetero')
+
+double_reg_base_tavg_stn_prcp <- feols(log(n) ~ treat + post + treat*post + TAVG + PRCP_DUM + SNOW_DUM + station_cnt, data=trips_double_by_day, vcov='hetero')
+
+etable(double_reg_base,double_reg_base_tavg_stn_prcp)
+
+```
+
+```{r}
+#build DDD regression df
+#THIS IS THE PRIMARY REGRESSION OF THE PAPER
+
+
+#bind indego member and non-member trips
+indego_trips_triple <- rbind(indego_trips_non_member, indego_trips_member)
+
+#bind citi bike member and non-member trips
+cb_trips_triple <- rbind(cb_trips_non_member, cb_trips_member) %>%
+  rename(
+    start_time=starttime, #rename columns
+    start_time_day=starttime_day,
+    start_time_month=starttime_month
+  )
+
+#prep data for DID
+indego_trips_triple <- indego_trips_triple %>%
+  mutate(city_bike_city = 'philly') %>% #helpful indicator
+  mutate(treat = 0) %>% #set as control
+  mutate(post = 0) %>% #create post column
+  mutate(post = ifelse(indego_trips_triple$start_time_day >= as.Date('2019-05-22'), 1, 0)) #set post to 1 if after intervention
+
+cb_trips_triple <- cb_trips_triple %>%
+  mutate(city_bike_city = 'nyc') %>% #helpful indicator
+  mutate(treat = 1) %>% #set as treat
+  mutate(post = 0) %>% #create post column
+  mutate(post = ifelse(cb_trips_triple$start_time_day >= as.Date('2019-05-22'), 1, 0)) #set post to 1 if after intervention
+
+#combine sets
+trips_triple <- rbind(indego_trips_triple, cb_trips_triple)
+
+#join station counts
+trips_triple <- inner_join(trips_triple, monthly_station_cts, by=c('start_time_month'= 'start_time_month','city_bike_city' = 'city_bike_city'))
+
+#group by day and count trips, this will give us a y variable
+trips_triple_by_day <- trips_triple %>%
+  count(start_time_day, station_cnt, city_bike_city, treat, post, non_member)
+
+#merge weather data in to trips_by_day data set
+trips_triple_by_day <- trips_triple_by_day %>%
+  inner_join(weather, by=c('start_time_day'='weather_date', 'city_bike_city' = 'weather_city'))
+```
+
+```{r}
+#Build triple DiD regressions and output results
+
+#base regression, this is equation (1)
+triple_reg_base <- feols(n ~ treat + non_member + post + treat*non_member + treat*post + non_member*post + treat*non_member*post, data=trips_triple_by_day, vcov='hetero')
+
+#base regression + additional controls, this is equation (2)
+triple_reg_base_tavg_stn_prcp <- feols(log(n) ~ treat + non_member + post + treat*non_member + treat*post + non_member*post + treat*non_member*post + TAVG + PRCP_DUM + SNOW_DUM +  station_cnt, data=trips_triple_by_day, vcov='hetero')
+
+
+#OUTPUT IN TABLE 3
+etable(triple_reg_base,triple_reg_base_tavg_stn_prcp)
+```
+
+```{r}
+#export DDD results (this just makes a table that we can easily copy/paste into Word)
+#for publication it would be best to do this all in Latex, this export is simply to comply with submission guidelines
+#Table (3)
+
+
+
+models_ddd <- list(
+  'Base DDD' = triple_reg_base,
+  'DDD with controls' = triple_reg_base_tavg_stn_prcp
+)
+
+models_ddd_output <- msummary(models_ddd,
+                              statistic=NULL,
+                              estimate='{estimate} ({std.error}) {stars}',
+                              gof_omit = 'BIC|AIC|R2 Within|R2 Within Adj.|RMSE',
+                              coef_rename = c('Intercept','Treat (NYC)', 'Non-Member', 'Post', 'Treat x Non-Member', 'Treat x Post', 'Non-Member x Post', 'Treat x Non-Member x Post (DDD)', 'Temperature Average', 'Precipitation', 'Snow', 'Station Count'),
+                              stars = TRUE,
+                              font_size = 8, 
+                              title = 'Table n',
+                              )
+
+
+models_ddd_output
+```
+
