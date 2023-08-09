@@ -1,0 +1,400 @@
+---
+title: "Summary Stats"
+author: "Michael Guzzardi"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+```{r}
+###WEATHER STATS###
+
+#import weather data
+weather <- read_csv('/Users/michaelguzzardi/Desktop/LSE/Dissertation/Data/noaa_weather_nyc_philly.csv')
+
+#clean up dates
+weather <- weather %>%
+  mutate(weather_date = as.Date(DATE, '%d/%m/%Y')) %>%
+  mutate(TAVG = (TMAX+TMIN)/2) %>%
+  select(c('NAME','weather_date','PRCP','SNOW','TAVG','TMAX','TMIN')) %>%
+  mutate(weather_city = ifelse(NAME == 'JFK INTERNATIONAL AIRPORT, NY US', 'nyc', 'philly')) %>%
+  mutate(PRCP_DUM = ifelse(PRCP > 0, 1, 0)) %>%
+  mutate(SNOW_DUM = ifelse(SNOW > 0, 1, 0))
+
+#group by the weather station in each city and calculate our statistics
+weather_sum <- weather %>%
+  group_by(NAME) %>%
+  summarise(
+    sum_prcp=sum(PRCP, na.rm = TRUE),
+    sum_snow=sum(SNOW, na.rm = TRUE),
+    min_tavg=min(TAVG, na.rm = TRUE),
+    mean_tavg=mean(TAVG, na.rm = TRUE),
+    max_tavg=max(TAVG, na.rm = TRUE)
+  )
+
+#display table
+weather_sum
+```
+
+
+```{r}
+###PUBLIC BIKE STATS###
+
+###INDEGO###
+setwd("/Users/michaelguzzardi/Desktop/LSE/Dissertation/Data/indego/")
+
+#import data indego
+indego_trips_2019q1  <- read_csv('indego-trips-2019-q1.csv')
+indego_trips_2019q2  <- read_csv('indego-trips-2019-q2.csv')
+indego_trips_2019q3  <- read_csv('indego-trips-2019-q3.csv')
+indego_trips_2019q4  <- read_csv('indego-trips-2019-q4.csv')
+
+#subset data
+indego_trips_2019q1 <- subset(indego_trips_2019q1, select=c(start_time, passholder_type, bike_type))
+indego_trips_2019q2 <- subset(indego_trips_2019q2, select=c(start_time, passholder_type, bike_type))
+indego_trips_2019q3 <- subset(indego_trips_2019q3, select=c(start_time, passholder_type, bike_type)) %>%
+  mutate(start_time=as.Date(start_time,'%m/%d/%Y'))
+indego_trips_2019q4 <- subset(indego_trips_2019q4, select=c(start_time, passholder_type, bike_type))
+
+#bind into one dataset
+indego_trips_all <- rbind(indego_trips_2019q1,indego_trips_2019q2,indego_trips_2019q3,indego_trips_2019q4)
+indego_trips_all <- dplyr::rename(indego_trips_all,usertype=passholder_type)
+
+#filter out ebikes (see indego ebike analysis script for portion of ebikes filtered out)
+indego_trips_all <- indego_trips_all %>%
+  filter(bike_type != 'electric') %>%
+  select(-bike_type) #remove bike_type column
+
+#round start time dates to the nearest day and month for agg purposes
+indego_trips_all <- indego_trips_all %>%
+  mutate(start_time_day=trunc(start_time, unit='days')) %>%
+  mutate(start_time_month=trunc(start_time, unit='months')) %>%
+  mutate(week_num=strftime(start_time_day, format='%V')) #average by week
+
+indego_trips_all <- filter(indego_trips_all, usertype %in% c('Day Pass','Walk-up','Indego365'))
+
+indego_trips_all_sum <- indego_trips_all %>%
+  mutate(usertype = ifelse(usertype %in% c('Day Pass','Walk-up'), 'Non-member', 'Member')) %>%
+  mutate(city_bike_system = 'Indego')
+
+```
+
+
+```{r}
+###CITI BIKE###
+setwd("/Users/michaelguzzardi/Desktop/LSE/Dissertation/Data/citi_bike/")
+
+#import data csvs citi bike nyc
+cb_trips_201901  <- read_csv('201901-citibike-tripdata.csv')
+cb_trips_201902  <- read_csv('201902-citibike-tripdata.csv')
+cb_trips_201903  <- read_csv('201903-citibike-tripdata.csv')
+cb_trips_201904  <- read_csv('201904-citibike-tripdata.csv')
+cb_trips_201905  <- read_csv('201905-citibike-tripdata.csv')
+cb_trips_201906  <- read_csv('201906-citibike-tripdata.csv')
+cb_trips_201907  <- read_csv('201907-citibike-tripdata.csv')
+cb_trips_201908  <- read_csv('201908-citibike-tripdata.csv')
+cb_trips_201909  <- read_csv('201909-citibike-tripdata.csv')
+cb_trips_201910  <- read_csv('201910-citibike-tripdata.csv')
+cb_trips_201911  <- read_csv('201911-citibike-tripdata.csv')
+cb_trips_201912  <- read_csv('201912-citibike-tripdata.csv')
+
+#select only start time from each df
+cb_trips_201901 <- cb_trips_201901 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201902 <- cb_trips_201902 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201903 <- cb_trips_201903 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201904 <- cb_trips_201904 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201905 <- cb_trips_201905 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201906 <- cb_trips_201906 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201907 <- cb_trips_201907 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201908 <- cb_trips_201908 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201909 <- cb_trips_201909 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201910 <- cb_trips_201910 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201911 <- cb_trips_201911 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_201912 <- cb_trips_201912 %>%
+  subset(select=c(starttime, usertype))
+
+cb_trips_all <- rbind(cb_trips_201912,cb_trips_201911,cb_trips_201910,
+                      cb_trips_201909,cb_trips_201908,cb_trips_201907,
+                      cb_trips_201906,cb_trips_201905,cb_trips_201904,
+                      cb_trips_201903,cb_trips_201902,cb_trips_201901)
+
+cb_trips_all <- cb_trips_all %>%
+  rename(start_time = starttime) %>%
+  mutate(start_time_day=trunc(start_time, unit='days')) %>%
+  mutate(start_time_month=trunc(start_time, unit='months')) %>%
+  mutate(week_num=strftime(start_time_day, format='%V')) #average by week
+
+cb_trips_all_sum <- cb_trips_all %>%
+  mutate(usertype = ifelse(usertype == 'Customer', 'Non-member', 'Member')) %>%
+  mutate(city_bike_system = 'Citi Bike')
+
+```
+
+
+```{r}
+#combine Indego and Citi Bike
+all_trips_sum <- rbind(indego_trips_all_sum, cb_trips_all_sum)
+
+#make ride aggregations-- count all trips grouped by the city bike system and the month of each ride
+monthly_avg_rides <- all_trips_sum %>%
+  group_by(city_bike_system, start_time_month) %>%
+  mutate(monthly_avg_rides = mean(n()))
+
+monthly_avg_rides_usertype <- all_trips_sum %>%
+  group_by(city_bike_system, start_time_month, usertype) %>%
+  mutate(monthly_avg_rides_usertype = mean(n()))
+
+
+```
+
+
+```{r}
+######monthly station counts#############
+
+#get unique station count by month for each, to later use in final dataset to control for system expansion
+#see R script: bike_station_analysis
+#csvs of script will be loaded here
+
+#NYC citi bike
+cb_station_unique <- read_csv('/Users/michaelguzzardi/Desktop/LSE/Dissertation/cb_trips_combined.csv')
+
+cb_station_cnts <- cb_station_unique %>%
+  group_by(starttime_month) %>%
+  count() %>%
+  mutate(city_bike_city = 'nyc') %>%
+  dplyr::rename(station_cnt = n) %>%
+  dplyr::rename(start_time_month=starttime_month)
+
+
+#philly Indego
+indego_station_unique <- read_csv('/Users/michaelguzzardi/Desktop/LSE/Dissertation/indego_trips_combined.csv')
+
+indego_station_cts <- indego_station_unique %>%
+  group_by(start_time_month) %>%
+  count() %>%
+  mutate(city_bike_city = 'philly') %>%
+  dplyr::rename(station_cnt = n)
+
+monthly_station_cts <- rbind(cb_station_cnts,indego_station_cts)
+
+#add column to make later merge easier
+monthly_station_cts <- monthly_station_cts %>%
+  mutate(city_bike_system = ifelse(city_bike_city == 'nyc', 'Citi Bike', 'Indego')) %>%
+  rename(monthly_station_cnt = station_cnt) 
+```
+
+
+```{r}
+#### avg trip length #####
+
+#indgeo#
+setwd("/Users/michaelguzzardi/Desktop/LSE/Dissertation/Data/indego/")
+
+#import data indego
+indego_trips_2019q1  <- read_csv('indego-trips-2019-q1.csv')
+indego_trips_2019q2  <- read_csv('indego-trips-2019-q2.csv')
+indego_trips_2019q3  <- read_csv('indego-trips-2019-q3.csv')
+indego_trips_2019q4  <- read_csv('indego-trips-2019-q4.csv')
+
+#subset data (add the duration variable)
+indego_trips_2019q1 <- subset(indego_trips_2019q1, select=c(start_time, passholder_type, bike_type, duration))
+indego_trips_2019q2 <- subset(indego_trips_2019q2, select=c(start_time, passholder_type, bike_type, duration))
+indego_trips_2019q3 <- subset(indego_trips_2019q3, select=c(start_time, passholder_type, bike_type, duration)) %>%
+  mutate(start_time=as.Date(start_time,'%m/%d/%Y'))
+indego_trips_2019q4 <- subset(indego_trips_2019q4, select=c(start_time, passholder_type, bike_type, duration))
+
+#bind into one dataset
+indego_trips_all <- rbind(indego_trips_2019q1,indego_trips_2019q2,indego_trips_2019q3,indego_trips_2019q4)
+indego_trips_all <- dplyr::rename(indego_trips_all,usertype=passholder_type)
+
+#filter out ebikes
+indego_trips_all <- indego_trips_all %>%
+  filter(bike_type != 'electric') %>%
+  select(-bike_type) #remove bike_type column
+
+#find 99 quantile
+indego_trip_duration_quantile <- indego_trips_all$duration %>%
+  quantile(.99)
+
+indego_trips_all_filt <- indego_trips_all %>%
+  filter(duration <= 149) %>% #99 percentile filter for outliers
+  filter(usertype %in% c('Day Pass','Walk-up','Indego365')) %>%
+  mutate(usertype = ifelse(usertype %in% c('Walk-up', 'Day Pass'), 'Non-Member', 'Member')) %>%
+  mutate(city_bike_system = 'Indego') %>%
+  rename(tripduration=duration)
+
+
+indego_trips_all_filt_group <- indego_trips_all_filt %>%
+  count(usertype)
+
+#citi bike#
+setwd("/Users/michaelguzzardi/Desktop/LSE/Dissertation/Data/citi_bike/")
+
+#import data csvs citi bike nyc
+cb_trips_201901  <- read_csv('201901-citibike-tripdata.csv')
+cb_trips_201902  <- read_csv('201902-citibike-tripdata.csv')
+cb_trips_201903  <- read_csv('201903-citibike-tripdata.csv')
+cb_trips_201904  <- read_csv('201904-citibike-tripdata.csv')
+cb_trips_201905  <- read_csv('201905-citibike-tripdata.csv')
+cb_trips_201906  <- read_csv('201906-citibike-tripdata.csv')
+cb_trips_201907  <- read_csv('201907-citibike-tripdata.csv')
+cb_trips_201908  <- read_csv('201908-citibike-tripdata.csv')
+cb_trips_201909  <- read_csv('201909-citibike-tripdata.csv')
+cb_trips_201910  <- read_csv('201910-citibike-tripdata.csv')
+cb_trips_201911  <- read_csv('201911-citibike-tripdata.csv')
+cb_trips_201912  <- read_csv('201912-citibike-tripdata.csv')
+
+#select variables, including tripduration
+cb_trips_201901 <- cb_trips_201901 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_201902 <- cb_trips_201902 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_201903 <- cb_trips_201903 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_201904 <- cb_trips_201904 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_201905 <- cb_trips_201905 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_201906 <- cb_trips_201906 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_201907 <- cb_trips_201907 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_201908 <- cb_trips_201908 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_201909 <- cb_trips_201909 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_201910 <- cb_trips_201910 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_201911 <- cb_trips_201911 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_201912 <- cb_trips_201912 %>%
+  subset(select=c(starttime, usertype, tripduration))
+
+cb_trips_all <- rbind(cb_trips_201912,cb_trips_201911,cb_trips_201910,
+                      cb_trips_201909,cb_trips_201908,cb_trips_201907,
+                      cb_trips_201906,cb_trips_201905,cb_trips_201904,
+                      cb_trips_201903,cb_trips_201902,cb_trips_201901)
+
+#get tripduration in terms of minutes
+cb_trips_all <- cb_trips_all %>%
+  mutate(tripduration = tripduration/60)
+
+#find 99 quantile
+cb_trip_duration_quantile <- cb_trips_all$tripduration %>%
+  quantile(.99)
+
+cb_trips_all_filt <- cb_trips_all %>%
+  filter(tripduration <= 58.4) %>% #99 percentile to remove outliers
+  rename(start_time = starttime) %>%
+  mutate(time_period = ifelse(start_time < as.Date('2019-05-22'), 'Pre', 'Post')) %>%
+  mutate(usertype = ifelse(usertype == 'Customer', 'Non-member', 'Member')) %>%
+  mutate(city_bike_system = 'Citi Bike')
+
+#build summary 2x2 table, of pre/post mean ride time by membership
+trip_length_sum <- cb_trips_all_filt %>%
+  group_by(usertype, time_period) %>%
+  summarise(
+    mean_trip_time = mean(tripduration, na.rm=TRUE)
+  ) %>%
+  pivot_wider(names_from = time_period, #pivots our data so that our pre/post time periods can be columns
+              values_from = mean_trip_time)
+
+
+#combine our citi bike and indego trip distance tables
+
+cb_trip_dist <- cb_trips_all_filt %>%
+  select(tripduration,city_bike_system)
+indego_trip_dist <- indego_trips_all_filt %>%
+  select(tripduration,city_bike_system)
+
+trip_dist_all <- rbind(cb_trip_dist,indego_trip_dist)
+
+#group by the city bike system and find the median trip duration
+trip_dist_mean <- trip_dist_all %>%
+  group_by(city_bike_system) %>%
+  mutate(med_tripduration = median(tripduration))
+
+#group by the city bike system and find the mean trip duration
+trip_dist_all_sum <- trip_dist_all %>%
+  group_by(city_bike_system) %>%
+  summarise(
+    mean_trip_duration = mean(tripduration)
+  )
+```
+
+
+```{r}
+#combine all summary tables for final city bike summary table
+
+#here are all the dataframes we are gonna combine
+# trip_dist_mean
+# monthly_station_cts
+# monthly_avg_rides
+# monthly_avg_rides_usertype
+
+#group by city bike system and get a mean of the mean monthly station count (this averages out all monthly station counts)
+sum_table <- monthly_station_cts %>%
+  group_by(city_bike_system) %>%
+  summarise(avg_monthly_station_cnt = mean(monthly_station_cnt))
+
+#group by city bike system and get a median of the median trip duration (this gets a median of all median monthly trip durations)
+sum_table_trip_duration <- trip_dist_mean %>%
+  group_by(city_bike_system) %>%
+  summarise(med_trip_duration = median(tripduration))
+
+#group by city bike system and get a mean of monthly average rides (this averages out all average monthly ride counts)
+sum_table_avg_rides <- monthly_avg_rides %>%
+  group_by(city_bike_system) %>%
+  summarise(monthly_avg_rides = mean(monthly_avg_rides))
+
+#group by city bike system and user type to get an average of the monthly average number of each user type
+sum_table_avg_rides_user <- monthly_avg_rides_usertype %>%
+  group_by(city_bike_system, usertype) %>%
+  summarise(monthly_avg_rides_usertype = mean(monthly_avg_rides_usertype)) %>%
+  pivot_wider(names_from = usertype, #pivots data so that columns are usertype and values are the monthly average rides for each
+              values_from = monthly_avg_rides_usertype)
+
+#make a series of joins to create the final table output
+sum_table_final <- sum_table %>%
+  inner_join(sum_table_trip_duration, by='city_bike_system') %>%
+  inner_join(sum_table_avg_rides, by='city_bike_system') %>%
+  inner_join(sum_table_avg_rides_user, by='city_bike_system') %>%
+  rename(monthly_avg_member_rides = Member) %>%
+  rename(monthly_avg_non_member_rides = `Non-member`)
+
+#display
+sum_table_final
+```
