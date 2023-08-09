@@ -16,14 +16,14 @@ The file named: `dissertation_supplement_core` will contain the primary code for
 
 The following files are also needed:
 * `bike_station_analysis`
-  * This produces a csv that is loaded in the main file, `dissertation_supplement_core`, and therefore the underlying code for our `Station Count` variable
+  * This script produces a csv that is loaded in the main file, `dissertation_supplement_core`, and therefore the underlying code for our `Station Count` variable
 * `event_study`
-  * This produces the event study regression (equation 3 and table 4) that is found in our robustness checks
-*
-
-
-TODO: Summary tables
-
+  * This script produces the event study regression (equation 3 and table 4) that is found in our robustness checks
+* `summary_stats_rmd`
+  * This script produces the following summary data tables:
+    * Table 1 (public bike data)
+    * Table 2 (weather data)
+  
 ## Downloading source data
 
 ### Public Bicycle Data
