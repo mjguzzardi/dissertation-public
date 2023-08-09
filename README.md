@@ -1,6 +1,6 @@
 # Overview and information for this repository
 
-This is a repository to supplement the MSc dissertation: "*Convenience, technology, and urban mobility: quantifying the effect of user-friendly public bike system improvements on Citi Bike ridership*"
+This is a repository to supplement the MSc dissertation: "*Convenience, technology, and urban mobility: quantifying the effect of user-friendly public bike system improvements on Citi Bike ridership in New York*"
 
 All code is in R and will either be in a .Rmd file format (R Markdown) or in a .R file format if it is a smaller script.
 
