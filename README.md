@@ -4,6 +4,8 @@ This is a repository to supplement the MSc dissertation: "*Convenience, technolo
 
 All code is in R and will either be in a .Rmd file format (R Markdown) or in a .R file format if it is a smaller script.
 
+**Note**: Some files have duplicative code or variables, so it is best to run entire files rather than switching between files in the same environment, just in case it overwrites certain variables. The duplicative code is often to include a new variable from the source data (and sometimes for prioritizing time rather than perfection).
+
 ## Files needed and file summaries
 
 The file named: `dissertation_supplement_core` will contain the primary code for replicating the following:
