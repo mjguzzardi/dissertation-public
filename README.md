@@ -13,14 +13,14 @@ The file named: `dissertation_supplement_core` will contain the primary code for
   * System data from Indego and Citi Bike
   * Weather data from NOAA     
 * Produce charts for visually checking for parallel trends (Figures 1 and 6)
-* Running regressions to output Tables 5 and 3
+* Running regressions (Adapted from Equations 1 and 2) to output Tables 5 and 3
   * Including code that produces a simplified table for copy-pasting into a Word document
 
 The following files are also needed:
 * `bike_station_analysis`
   * This script produces a csv that is loaded in the main file, `dissertation_supplement_core`, and therefore the underlying code for our `Station Count` variable
 * `event_study`
-  * This script produces the event study regression (equation 3 and table 4) that is found in our robustness checks
+  * This script produces the event study regression (Equation 3 and Table 4) that is found in our robustness checks
 * `summary_stats_rmd`
   * This script produces the following summary data tables:
     * Table 1 (public bike data)
