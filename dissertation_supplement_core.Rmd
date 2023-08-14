@@ -394,11 +394,11 @@ trips_by_day_m <- trips_by_day_m %>%
 
 #base DD
 #Output for "Base Member DD" in Table (5)
-reg_base_m <- feols(log(n) ~ treat*post, data=trips_by_day_m) 
+reg_base_m <- feols(log(n) ~ treat*post, vcov='hetero', data=trips_by_day_m) 
 
 #base DD with temp, precipitation, and station cnt variable for both cities
 #this is equation (4), and output for "Member DD with Controls" in Table 5
-reg_base_m_tavg_prcp_stn <- feols(log(n) ~ treat*post + TAVG + PRCP_DUM + SNOW_DUM + station_cnt, data=trips_by_day_m) 
+reg_base_m_tavg_prcp_stn <- feols(log(n) ~ treat*post + TAVG + PRCP_DUM + SNOW_DUM + station_cnt, vcov='hetero' data=trips_by_day_m) 
 
 #display results Table (5)
 etable(reg_base_m,reg_base_m_tavg_prcp_stn)
