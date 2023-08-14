@@ -13,7 +13,7 @@ pta_check_df <- trips_triple_by_day %>%
 pta_check_df$start_time_month <- factor(pta_check_df$start_time_month)
 
 #build regression (this is equation 3)
-reg_month_pta_check <- feols(log(n) ~ i(start_time_month, ref='2019-01-01')*treat, data=pta_check_df)
+reg_month_pta_check <- feols(log(n) ~ i(start_time_month, ref='2019-01-01')*treat, vcov='hetero', data=pta_check_df)
 
 #output reg table
 etable(reg_month_pta_check)
