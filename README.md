@@ -25,7 +25,9 @@ The following files are also needed:
   * This script produces the following summary data tables:
     * Table 1 (public bike data)
     * Table 2 (weather data)
-  
+
+The file named: `dissertation_supplement_core_2018_2019.Rmd` will contain the primary code for replicating Figures 1 and 6 with data spanning 2018 and 2019. It does NOT go as far as producing regressions at this moment. 
+
 ## Downloading source data
 
 ### Public Bicycle Data
@@ -34,13 +36,13 @@ The following files are also needed:
 
 * Navigate to the Citi Bike System Data website here: https://citibikenyc.com/system-data
 * Click into the downloadable files to access s3 buckets: https://s3.amazonaws.com/tripdata/index.html
-* Download all zip files for 2019
+* Download all zip files for 2019 (files are available for 2018, too)
 * Load csv files into R where specified (make sure to reference the correct file path for where you saved them)
 
 **Indego**
 
 * Navigate to the Indego Bike System Data website here: https://www.rideindego.com/about/data/
-* Download Q1-Q4 2019 files
+* Download Q1-Q4 2019 files (files are available for Q1-Q4 2018, too)
 * Load csv files into R where specified (make sure to reference the correct file path for where you saved them)
 
 ### Weather data
